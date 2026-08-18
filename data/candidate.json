@@ -1,0 +1,193 @@
+{
+  "name": "Shridhar Ghadi",
+
+  "location": {
+    "city": "Pune",
+    "country": "India",
+    "countryCode": "IN"
+  },
+
+  "education": {
+    "degree": "Bachelor of Computer Engineering",
+    "graduationYear": 2025,
+    "cgpa": 8.02
+  },
+
+  "experience": {
+    "totalRelevantYears": 1,
+    "currentRole": "Quality Assurance Engineer",
+    "currentRoleSince": "2026-05",
+
+    "roles": [
+      {
+        "title": "Quality Assurance Engineer",
+        "start": "2026-05",
+        "skills": [
+          "Manual Testing",
+          "Functional Testing",
+          "Regression Testing",
+          "Smoke Testing",
+          "UAT Testing",
+          "API Testing",
+          "Postman",
+          "REST APIs",
+          "Jira",
+          "Defect Reporting",
+          "Test Case Design",
+          "End-to-End Testing",
+          "Fintech",
+          "SaaS",
+          "POS"
+        ]
+      },
+
+      {
+        "title": "Full Stack Developer Trainee",
+        "start": "2025-09",
+        "end": "2026-05",
+        "skills": [
+          "React.js",
+          "Node.js",
+          "Express.js",
+          "MongoDB",
+          "REST APIs",
+          "JavaScript",
+          "HTML5",
+          "Tailwind CSS",
+          "Git",
+          "GitHub",
+          "CRUD",
+          "Authentication"
+        ]
+      },
+
+      {
+        "title": "Frontend Developer Intern",
+        "start": "2025-06",
+        "end": "2025-10",
+        "skills": [
+          "React.js",
+          "Redux Toolkit",
+          "REST APIs",
+          "GraphQL",
+          "Postman",
+          "Chrome DevTools",
+          "JavaScript",
+          "Git",
+          "Jira",
+          "SaaS"
+        ]
+      }
+    ]
+  },
+
+  "skills": {
+    "languages": [
+      "JavaScript",
+      "SQL",
+      "Python",
+      "C++"
+    ],
+
+    "frontend": [
+      "React.js",
+      "Next.js",
+      "Redux Toolkit",
+      "Tailwind CSS"
+    ],
+
+    "backend": [
+      "Node.js",
+      "Express.js",
+      "REST APIs",
+      "GraphQL APIs"
+    ],
+
+    "databases": [
+      "SQL",
+      "MySQL",
+      "MongoDB"
+    ],
+
+    "testing": [
+      "Manual Testing",
+      "Functional Testing",
+      "Regression Testing",
+      "Smoke Testing",
+      "UAT Testing",
+      "API Testing",
+      "Exploratory Testing",
+      "Test Case Execution",
+      "Defect Reporting",
+      "End-to-End Testing"
+    ],
+
+    "tools": [
+      "Postman",
+      "Jira",
+      "Git",
+      "GitHub",
+      "Chrome DevTools",
+      "Microsoft Excel",
+      "Google Sheets",
+      "Jupyter Notebook"
+    ],
+
+    "authentication": [
+      "JWT Authentication"
+    ]
+  },
+
+  "projects": [
+    {
+      "name": "AMDital",
+      "type": "SaaS Business Management Platform",
+      "technologies": [
+        "React.js",
+        "Redux Toolkit",
+        "GraphQL",
+        "Postman"
+      ]
+    },
+    {
+      "name": "StellarCoin",
+      "type": "Decentralized Trading Platform",
+      "technologies": [
+        "React.js",
+        "Tailwind CSS",
+        "Stellar SDK",
+        "Freighter Wallet"
+      ]
+    }
+  ],
+
+  "targetRoles": [
+    "Software Engineer",
+    "Software Developer",
+    "Full Stack Developer",
+    "Frontend Developer",
+    "Backend Developer",
+    "React Developer",
+    "Node.js Developer",
+    "QA Engineer",
+    "Quality Assurance Engineer",
+    "SDET",
+    "Test Automation Engineer",
+    "Automation Test Engineer"
+  ],
+
+  "preferredLocations": [
+    "Pune",
+    "Mumbai",
+    "Bangalore",
+    "Bengaluru",
+    "Hyderabad",
+    "India",
+    "Remote India"
+  ],
+
+  "workPreference": {
+    "remote": true,
+    "indiaOnly": true
+  }
+}
