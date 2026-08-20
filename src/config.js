@@ -1,16 +1,15 @@
 module.exports = {
     jobPreferences: {
 
-        // ------------------------------------------
-        // Target job titles / keywords
-        // ------------------------------------------
-
         targetRoles: [
             "software engineer",
             "software developer",
 
             "full stack developer",
             "full stack engineer",
+
+            "backend developer",
+            "backend engineer",
 
             "frontend developer",
             "frontend engineer",
@@ -22,38 +21,14 @@ module.exports = {
 
             "qa engineer",
             "quality assurance engineer",
+            "quality engineer",
             "sdet",
-            "automation test engineer",
-            "test automation engineer"
+            "test engineer",
+            "test automation engineer",
+            "automation test engineer"
         ],
 
-        // ------------------------------------------
-        // Titles we DON'T want
-        // ------------------------------------------
-
         excludedTitles: [
-            "senior",
-            "sr.",
-            "sr ",
-            "staff",
-            "principal",
-            "lead",
-            "manager",
-            "director",
-            "head of",
-            "vp",
-            "vice president",
-
-            "intern",
-            "internship",
-
-            "data engineer",
-            "data scientist",
-            "data analyst",
-
-            "devops engineer",
-            "site reliability engineer",
-
             "sales",
             "account executive",
             "account manager",
@@ -63,23 +38,14 @@ module.exports = {
             "customer success"
         ],
 
-        // ------------------------------------------
-        // Preferred locations
-        // ------------------------------------------
-
         preferredLocations: [
             "india",
             "pune",
             "mumbai",
             "bangalore",
             "bengaluru",
-            "hyderabad",
-            "remote"
+            "hyderabad"
         ],
-
-        // ------------------------------------------
-        // Minimum match score
-        // ------------------------------------------
 
         minMatchScore: 70
     }
