@@ -1,0 +1,46 @@
+{
+  "generatedAt": "2026-08-20T13:04:50.890Z",
+  "status": "PREPARATION_ONLY",
+  "submissionAllowed": false,
+  "job": {
+    "id": "greenhouse:stripe:8119967",
+    "source": "greenhouse",
+    "company": "Stripe",
+    "title": "Specialist Solutions Architect, Payments",
+    "location": "London, Dublin",
+    "url": "https://stripe.com/jobs/search?gh_jid=8119967",
+    "applicationUrl": "https://stripe.com/jobs/search?gh_jid=8119967"
+  },
+  "match": {
+    "score": null,
+    "recommendation": null,
+    "careerTrack": null,
+    "reason": "",
+    "strengths": [],
+    "concerns": []
+  },
+  "candidate": {
+    "name": "Shridhar Ghadi",
+    "email": null,
+    "phone": null,
+    "location": {
+      "city": "Pune",
+      "country": "India",
+      "countryCode": "IN"
+    },
+    "linkedin": null,
+    "github": null
+  },
+  "resume": {
+    "path": "D:\\job-application-agent\\data\\resume.pdf",
+    "filename": "resume.pdf",
+    "type": "application/pdf",
+    "size": 122394
+  },
+  "applicationAnswers": {},
+  "approval": {
+    "required": true,
+    "approved": false,
+    "approvedAt": null
+  }
+}

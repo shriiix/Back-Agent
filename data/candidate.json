@@ -12,6 +12,13 @@
     "graduationYear": 2025,
     "cgpa": 8.02
   },
+  
+  "resume": {
+    "path": "data/resume.pdf",
+    "type": "pdf",
+    "primary": true
+  },
+
 
   "experience": {
     "totalRelevantYears": 1,

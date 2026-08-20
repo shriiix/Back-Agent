@@ -1,899 +1,778 @@
-const {
-    jobPreferences
-} = require("../config");
+const DEFAULT_MAX_CANDIDATES = 15;
 
-const fs = require("fs");
-const path = require("path");
+/*
+|--------------------------------------------------------------------------
+| Candidate Role Configuration
+|--------------------------------------------------------------------------
+|
+| Phase 3 is intentionally broad.
+| It should identify potentially relevant jobs and leave detailed
+| qualification decisions to Phase 4 (Groq).
+|
+*/
 
-// ==================================================
-// Load candidate profile
-// ==================================================
+const ROLE_GROUPS = {
+    development: [
+        "software engineer",
+        "software developer",
+        "full stack engineer",
+        "full stack developer",
+        "frontend engineer",
+        "frontend developer",
+        "backend engineer",
+        "backend developer",
+        "web developer",
+        "application developer",
+        "application engineer",
+        "node.js developer",
+        "react developer",
+        "javascript developer",
+        "python developer",
+        "java developer",
+        "api developer",
+        "platform engineer",
+        "product engineer"
+    ],
 
-const candidatePath = path.join(
-    __dirname,
-    "../../data/candidate.json"
-);
+    qa: [
+        "qa engineer",
+        "quality assurance engineer",
+        "software test engineer",
+        "test engineer",
+        "automation engineer",
+        "qa automation engineer",
+        "sdet",
+        "quality engineer",
+        "software quality engineer"
+    ],
 
-if (!fs.existsSync(candidatePath)) {
-    throw new Error(
-        `Candidate profile not found: ${candidatePath}`
-    );
-}
-
-const candidate = JSON.parse(
-    fs.readFileSync(candidatePath, "utf8")
-);
-
-
-// ==================================================
-// Text normalization
-// ==================================================
-
-function normalizeText(value) {
-    return String(value || "")
-        .toLowerCase()
-        .replace(/\s+/g, " ")
-        .trim();
-}
-
-
-// ==================================================
-// Target role matching
-// ==================================================
-
-function getRoleMatches(title) {
-
-    const normalizedTitle = normalizeText(title);
-
-    return candidate.targetRoles.filter(role =>
-        normalizedTitle.includes(
-            normalizeText(role)
-        )
-    );
-}
-
-
-// ==================================================
-// Excluded title matching
-// ==================================================
-
-function getExcludedTitleMatches(title) {
-
-    const normalizedTitle = normalizeText(title);
-
-    return jobPreferences.excludedTitles.filter(
-        keyword =>
-            normalizedTitle.includes(
-                normalizeText(keyword)
-            )
-    );
-}
+    hybrid: [
+        "software engineer in test",
+        "test automation developer",
+        "qa developer",
+        "quality automation engineer",
+        "developer in test"
+    ]
+};
 
 
-// ==================================================
-// Seniority detection
-// ==================================================
+/*
+|--------------------------------------------------------------------------
+| Titles that should never reach Phase 4
+|--------------------------------------------------------------------------
+|
+| These are clearly unrelated to the candidate's career direction.
+|
+*/
 
-function detectSeniority(title) {
+const HARD_EXCLUDED_ROLES = [
+    "account executive",
+    "account manager",
+    "sales manager",
+    "sales development",
+    "business development representative",
+    "business development manager",
+    "recruiter",
+    "recruiting",
+    "human resources",
+    "hr manager",
+    "legal counsel",
+    "attorney",
+    "paralegal",
+    "finance manager",
+    "financial analyst",
+    "accountant",
+    "controller",
+    "marketing manager",
+    "marketing specialist",
+    "communications manager",
+    "customer success manager",
+    "customer support",
+    "technical writer",
+    "office manager",
+    "executive assistant",
+    "operations manager",
+    "procurement manager"
+];
 
-    const normalizedTitle = normalizeText(title);
 
-    const seniorityPatterns = {
+/*
+|--------------------------------------------------------------------------
+| Internship / student roles
+|--------------------------------------------------------------------------
+*/
 
-        intern: [
-            "intern",
-            "internship"
-        ],
+const INTERNSHIP_KEYWORDS = [
+    "intern",
+    "internship",
+    "student",
+    "co-op",
+    "coop"
+];
 
-        entry_level: [
-            "entry level",
-            "entry-level",
-            "junior",
-            "jr.",
-            "jr "
-        ],
 
-        senior: [
-            "senior",
-            "sr.",
-            "sr "
-        ],
+/*
+|--------------------------------------------------------------------------
+| Senior roles
+|--------------------------------------------------------------------------
+|
+| IMPORTANT:
+| These are NOT hard rejected.
+|
+| Phase 3 only marks them as senior.
+| Phase 4 decides whether the experience gap is acceptable.
+|
+*/
 
-        staff: [
-            "staff"
-        ],
+const SENIOR_KEYWORDS = [
+    "senior",
+    "staff",
+    "principal",
+    "lead",
+    "manager",
+    "director",
+    "head of",
+    "architect"
+];
 
-        principal: [
-            "principal"
-        ],
 
-        lead: [
-            "lead"
-        ],
+/*
+|--------------------------------------------------------------------------
+| Location classification
+|--------------------------------------------------------------------------
+*/
 
-        manager: [
-            "manager",
-            "management"
-        ],
+function classifyLocation(job) {
 
-        director: [
-            "director"
-        ],
+    const location =
+        String(job.location || "")
+            .trim()
+            .toLowerCase();
 
-        executive: [
-            "vp",
-            "vice president",
-            "head of"
-        ]
-    };
+    const remote =
+        Boolean(job.remote);
 
-    for (
-        const [level, keywords]
-        of Object.entries(seniorityPatterns)
-    ) {
 
-        if (
-            keywords.some(keyword =>
-                normalizedTitle.includes(
-                    normalizeText(keyword)
-                )
-            )
-        ) {
-            return level;
-        }
+    if (!location || location === "n/a" || location === "na") {
+
+        return {
+            type: "UNKNOWN",
+            priority: 2,
+            score: 50
+        };
     }
 
-    return "individual_contributor";
-}
 
+    /*
+     * India
+     */
 
-// ==================================================
-// Location analysis
-// ==================================================
-
-function analyzeLocation(job) {
-
-    const location = normalizeText(
-        job.location
-    );
-
-    const indiaLocations = [
+    const indiaKeywords = [
         "india",
+        "bengaluru",
+        "bangalore",
         "pune",
         "mumbai",
-        "bangalore",
-        "bengaluru",
         "hyderabad",
-        "delhi",
+        "chennai",
         "gurgaon",
         "gurugram",
         "noida",
-        "chennai",
+        "new delhi",
+        "delhi",
         "kolkata",
-        "ahmedabad"
+        "ahmedabad",
+        "jaipur",
+        "kochi"
     ];
 
-    const indiaMatch =
-        indiaLocations.some(place =>
-            location.includes(place)
-        );
 
-    const remoteMatch =
-        location.includes("remote");
+    if (
+        indiaKeywords.some(
+            keyword => location.includes(keyword)
+        )
+    ) {
 
-    const explicitIndiaRemote =
-        remoteMatch &&
-        (
-            location.includes("india") ||
-            location.includes("in-remote") ||
-            location.includes("remote - india") ||
-            location.includes("remote, india")
-        );
+        return {
+            type: "INDIA",
+            priority: 1,
+            score: 100
+        };
+    }
+
 
     /*
-     * Example:
-     *
-     * US - Remote
-     * UK - Remote
-     *
-     * These should NOT automatically be treated
-     * as India-eligible.
+     * India remote
      */
 
-    const regionSpecificRemote =
-        remoteMatch &&
+    if (
+        location.includes("remote") &&
         (
-            location.includes("us") ||
-            location.includes("usa") ||
-            location.includes("united states") ||
-            location.includes("uk") ||
-            location.includes("united kingdom") ||
-            location.includes("canada") ||
-            location.includes("europe") ||
-            location.includes("australia")
-        );
+            location.includes("india") ||
+            location.includes("ind")
+        )
+    ) {
 
-    const genericRemote =
-        remoteMatch &&
-        !indiaMatch &&
-        !regionSpecificRemote;
+        return {
+            type: "INDIA_REMOTE",
+            priority: 1,
+            score: 100
+        };
+    }
+
+
+    /*
+     * Generic remote.
+     *
+     * Don't assume it means India.
+     */
+
+    if (
+        remote ||
+        location.includes("remote")
+    ) {
+
+        return {
+            type: "REMOTE",
+            priority: 2,
+            score: 70
+        };
+    }
+
+
+    /*
+     * Foreign location
+     */
 
     return {
-        raw: job.location || "",
-
-        indiaMatch,
-
-        remoteMatch,
-
-        explicitIndiaRemote,
-
-        regionSpecificRemote,
-
-        genericRemote
+        type: "OTHER_REGION",
+        priority: 3,
+        score: 20
     };
 }
 
-
-// ==================================================
-// Location eligibility
-// ==================================================
-
-function checkLocation(job) {
-
-    const info = analyzeLocation(job);
-
-    // Direct Indian location
-    if (info.indiaMatch) {
-
-        return {
-            eligible: true,
-            reason: "INDIA_LOCATION"
-        };
+function locationToText(location) {
+    if (!location) {
+        return "N/A";
     }
 
-    // Explicit India remote
-    if (info.explicitIndiaRemote) {
-
-        return {
-            eligible: true,
-            reason: "INDIA_REMOTE"
-        };
+    if (typeof location === "string") {
+        return location;
     }
 
-    // US / UK / Canada / Europe etc. remote
-    if (info.regionSpecificRemote) {
-
-        return {
-            eligible: false,
-            reason: "REMOTE_REGION_NOT_INDIA"
-        };
+    if (Array.isArray(location)) {
+        return location.join(", ");
     }
 
-    // Generic remote
-    if (info.genericRemote) {
-
-        return {
-            eligible: false,
-            reason: "REMOTE_REGION_UNCLEAR"
-        };
+    if (typeof location === "object") {
+        return (
+            location.city ||
+            location.name ||
+            location.country ||
+            "N/A"
+        );
     }
 
-    return {
-        eligible: false,
-        reason: "LOCATION_NOT_ELIGIBLE"
-    };
+    return String(location);
 }
 
 
-// ==================================================
-// Career track detection
-// ==================================================
+/*
+|--------------------------------------------------------------------------
+| Detect role
+|--------------------------------------------------------------------------
+*/
 
-function detectCareerTrack(title) {
+function detectRole(title) {
 
-    const normalizedTitle =
-        normalizeText(title);
+    const normalized =
+        String(title || "")
+            .toLowerCase()
+            .trim();
 
-    const qaKeywords = [
-        "qa engineer",
-        "quality assurance",
-        "software tester",
-        "test engineer",
-        "automation test",
-        "test automation",
-        "sdet",
-        "quality engineer"
-    ];
-
-    const developmentKeywords = [
-        "software engineer",
-        "software developer",
-        "full stack",
-        "frontend",
-        "front end",
-        "backend",
-        "back end",
-        "react",
-        "node",
-        "javascript",
-        "web developer",
-        "web engineer",
-        "ai engineer"
-    ];
-
-    const qaMatch =
-        qaKeywords.some(keyword =>
-            normalizedTitle.includes(keyword)
-        );
-
-    const developmentMatch =
-        developmentKeywords.some(keyword =>
-            normalizedTitle.includes(keyword)
-        );
-
-    if (qaMatch && developmentMatch) {
-        return "hybrid";
-    }
-
-    if (qaMatch) {
-        return "qa";
-    }
-
-    if (developmentMatch) {
-        return "development";
-    }
-
-    return "unknown";
-}
-
-
-// ==================================================
-// Experience extraction
-// ==================================================
-
-function extractRequiredYears(description) {
-
-    const text = normalizeText(
-        description
-    );
-
-    const patterns = [
-
-        /(\d+)\s*\+?\s*years?\s*(?:of)?\s*experience/,
-
-        /(\d+)\s*-\s*(\d+)\s*years?\s*(?:of)?\s*experience/,
-
-        /minimum\s*(?:of)?\s*(\d+)\s*years?/,
-
-        /at least\s*(\d+)\s*years?/
-    ];
 
     for (
-        const pattern of patterns
+        const [
+            track,
+            roles
+        ] of Object.entries(ROLE_GROUPS)
     ) {
 
-        const match =
-            text.match(pattern);
+        for (
+            const role of roles
+        ) {
 
-        if (!match) {
-            continue;
+            if (
+                normalized.includes(role)
+            ) {
+
+                return {
+                    match: true,
+                    track,
+                    role
+                };
+            }
         }
-
-        if (match[2]) {
-
-            return {
-                min: Number(match[1]),
-                max: Number(match[2])
-            };
-        }
-
-        return {
-            min: Number(match[1]),
-            max: null
-        };
     }
 
-    return null;
-}
-
-
-// ==================================================
-// Experience analysis
-// ==================================================
-
-function checkExperience(job) {
-
-    const required =
-        extractRequiredYears(
-            job.description
-        );
-
-    const candidateYears =
-        Number(
-            candidate.experience
-                ?.totalRelevantYears || 0
-        );
-
-    // JD doesn't clearly mention years
-    if (!required) {
-
-        return {
-            eligible: true,
-
-            borderline: false,
-
-            reason:
-                "EXPERIENCE_NOT_SPECIFIED",
-
-            candidateYears,
-
-            requiredYears: null
-        };
-    }
-
-    // Clearly too senior
-    if (
-        required.min >
-        candidateYears + 2
-    ) {
-
-        return {
-            eligible: false,
-
-            borderline: false,
-
-            reason:
-                "EXPERIENCE_SIGNIFICANTLY_HIGH",
-
-            candidateYears,
-
-            requiredYears:
-                required.min
-        };
-    }
-
-    // Slightly above candidate's
-    // estimated experience.
-    //
-    // Don't reject automatically.
-    // Let the AI matcher evaluate it later.
-    if (
-        required.min >
-        candidateYears
-    ) {
-
-        return {
-            eligible: true,
-
-            borderline: true,
-
-            reason:
-                "EXPERIENCE_BORDERLINE",
-
-            candidateYears,
-
-            requiredYears:
-                required.min
-        };
-    }
 
     return {
-        eligible: true,
-
-        borderline: false,
-
-        reason:
-            "EXPERIENCE_COMPATIBLE",
-
-        candidateYears,
-
-        requiredYears:
-            required.min
+        match: false,
+        track: "unknown",
+        role: null
     };
 }
 
 
-// ==================================================
-// Score calculation
-// ==================================================
+/*
+|--------------------------------------------------------------------------
+| Internship detection
+|--------------------------------------------------------------------------
+*/
 
-function calculateScore(
-    job,
-    checks
-) {
+function isInternship(title) {
+
+    const normalized =
+        String(title || "")
+            .toLowerCase();
+
+
+    return INTERNSHIP_KEYWORDS.some(
+        keyword =>
+            normalized.includes(keyword)
+    );
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| Seniority detection
+|--------------------------------------------------------------------------
+*/
+
+function detectSeniority(title) {
+
+    const normalized =
+        String(title || "")
+            .toLowerCase();
+
+
+    for (
+        const keyword of SENIOR_KEYWORDS
+    ) {
+
+        if (
+            normalized.includes(keyword)
+        ) {
+
+            return {
+                senior: true,
+                keyword
+            };
+        }
+    }
+
+
+    return {
+        senior: false,
+        keyword: null
+    };
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| Hard unrelated role
+|--------------------------------------------------------------------------
+*/
+
+function isHardExcluded(title) {
+
+    const normalized =
+        String(title || "")
+            .toLowerCase();
+
+
+    return HARD_EXCLUDED_ROLES.some(
+        keyword =>
+            normalized.includes(keyword)
+    );
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| Calculate Phase 3 priority
+|--------------------------------------------------------------------------
+|
+| Higher score = send to Phase 4 earlier.
+|
+*/
+
+function calculateCandidatePriority(job) {
+
+    const role =
+        detectRole(job.title);
+
+    const location =
+        classifyLocation(job);
+
+    const seniority =
+        detectSeniority(job.title);
+
 
     let score = 0;
 
-    // ----------------------------------------------
-    // Role
-    // ----------------------------------------------
 
-    if (
-        checks.roleMatches.length > 0
+    /*
+     * Role is the most important Phase 3 signal.
+     */
+
+    if (role.match) {
+        score += 50;
+    }
+
+
+    /*
+     * India gets highest priority.
+     */
+
+    if (location.type === "INDIA") {
+        score += 40;
+    }
+
+    else if (
+        location.type === "INDIA_REMOTE"
     ) {
         score += 40;
     }
 
-
-    // ----------------------------------------------
-    // Location
-    // ----------------------------------------------
-
-    if (
-        checks.location.eligible
+    else if (
+        location.type === "REMOTE"
     ) {
-        score += 25;
+        score += 20;
     }
 
-
-    // ----------------------------------------------
-    // Experience
-    // ----------------------------------------------
-
-    if (
-        checks.experience.eligible
+    else if (
+        location.type === "UNKNOWN"
     ) {
-
-        score +=
-            checks.experience.borderline
-                ? 10
-                : 20;
-    }
-
-
-    // ----------------------------------------------
-    // Career track
-    // ----------------------------------------------
-
-    if (
-        checks.careerTrack !== "unknown"
-    ) {
-
         score += 15;
     }
 
 
-    return Math.min(
-        score,
-        100
+    /*
+     * Senior roles are not rejected.
+     *
+     * We simply lower their priority slightly.
+     */
+
+    if (seniority.senior) {
+        score -= 10;
+    }
+
+
+    /*
+     * Jobs with descriptions are more useful
+     * for Phase 4 AI analysis.
+     */
+
+    if (
+        job.description &&
+        String(job.description).length > 500
+    ) {
+        score += 5;
+    }
+
+
+    return score;
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| Build candidate queue
+|--------------------------------------------------------------------------
+*/
+
+function buildCandidateQueue(
+    jobs,
+    options = {}
+) {
+
+    const maxCandidates =
+        Number(
+            options.maxCandidates ||
+            DEFAULT_MAX_CANDIDATES
+        );
+
+
+    const stats = {
+
+        totalJobs:
+            jobs.length,
+
+        targetRoleJobs:
+            0,
+
+        rejectedInternship:
+            0,
+
+        rejectedUnrelated:
+            0,
+
+        rejectedLocation:
+            0,
+
+        seniorityFlags:
+            0,
+
+        aiCandidates:
+            0
+    };
+
+
+    const candidates = [];
+
+
+    for (
+        const job of jobs
+    ) {
+
+        const title =
+            String(
+                job.title || ""
+            ).trim();
+
+
+        /*
+         * No title = useless job.
+         */
+
+        if (!title) {
+            continue;
+        }
+
+
+        /*
+         * Hard reject clearly unrelated jobs.
+         */
+
+        if (
+            isHardExcluded(title)
+        ) {
+
+            stats.rejectedUnrelated++;
+
+            continue;
+        }
+
+
+        /*
+         * Detect role.
+         */
+
+        const role =
+            detectRole(title);
+
+
+        if (!role.match) {
+
+            stats.rejectedUnrelated++;
+
+            continue;
+        }
+
+
+        stats.targetRoleJobs++;
+
+
+        /*
+         * Internships are excluded because
+         * the candidate is targeting full-time roles.
+         */
+
+        if (
+            isInternship(title)
+        ) {
+
+            stats.rejectedInternship++;
+
+            continue;
+        }
+
+
+        /*
+         * Location.
+         *
+         * IMPORTANT:
+         * Foreign jobs are NOT automatically rejected here.
+         *
+         * They are simply ranked lower.
+         *
+         * This allows Phase 4 to inspect jobs whose
+         * location may be ambiguous.
+         */
+
+        const location =
+            classifyLocation(job);
+
+
+        /*
+         * Seniority is now a SOFT signal.
+         */
+
+        const seniority =
+            detectSeniority(title);
+
+
+        if (
+            seniority.senior
+        ) {
+
+            stats.seniorityFlags++;
+        }
+
+
+        const priority =
+            calculateCandidatePriority(
+                job
+            );
+
+
+        candidates.push({
+
+            ...job,
+
+            phase3: {
+
+                careerTrack:
+                    role.track,
+
+                roleMatch:
+                    role.role,
+
+                seniority:
+                    seniority.senior
+                        ? "senior"
+                        : "individual_contributor",
+
+                seniorityKeyword:
+                    seniority.keyword,
+
+                locationType:
+                    location.type,
+
+                locationPriority:
+                    location.priority,
+
+                locationScore:
+                    location.score,
+
+                priorityScore:
+                    priority
+            }
+        });
+    }
+
+
+    /*
+     * Sort:
+     *
+     * 1. India
+     * 2. India Remote
+     * 3. Remote
+     * 4. Unknown
+     * 5. Other regions
+     *
+     * Within those groups, use priority score.
+     */
+
+    candidates.sort(
+        (a, b) => {
+
+            const locationDifference =
+                a.phase3.locationPriority -
+                b.phase3.locationPriority;
+
+
+            if (
+                locationDifference !== 0
+            ) {
+
+                return locationDifference;
+            }
+
+
+            return (
+                b.phase3.priorityScore -
+                a.phase3.priorityScore
+            );
+        }
+    );
+
+
+    /*
+     * Keep only the top N candidates.
+     */
+
+    const selected =
+        candidates.slice(
+            0,
+            maxCandidates
+        );
+
+
+    stats.aiCandidates =
+        selected.length;
+
+
+    return {
+
+        candidates:
+            selected,
+
+        stats
+    };
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| Backward-compatible filter function
+|--------------------------------------------------------------------------
+|
+| Your existing index.js may already import filterJobs().
+| Keep this function so the new implementation doesn't
+| break the rest of the project.
+|
+*/
+
+function filterJobs(
+    jobs,
+    options = {}
+) {
+
+    return buildCandidateQueue(
+        jobs,
+        options
     );
 }
 
 
-// ==================================================
-// Evaluate one job
-// ==================================================
-
-function evaluateJob(job) {
-
-    const roleMatches =
-        getRoleMatches(
-            job.title
-        );
-
-    const excludedMatches =
-        getExcludedTitleMatches(
-            job.title
-        );
-
-    const seniority =
-        detectSeniority(
-            job.title
-        );
-
-    const careerTrack =
-        detectCareerTrack(
-            job.title
-        );
-
-    const location =
-        checkLocation(job);
-
-    const experience =
-        checkExperience(job);
-
-
-    // ----------------------------------------------
-    // Reject excluded titles
-    // ----------------------------------------------
-
-    if (
-        excludedMatches.length > 0
-    ) {
-
-        return {
-            job,
-
-            eligible: false,
-
-            score: 0,
-
-            reason:
-                "EXCLUDED_TITLE",
-
-            roleMatches,
-
-            excludedMatches,
-
-            seniority,
-
-            careerTrack,
-
-            location,
-
-            experience
-        };
-    }
-
-
-    // ----------------------------------------------
-    // Reject internship
-    // ----------------------------------------------
-
-    if (
-        seniority === "intern"
-    ) {
-
-        return {
-            job,
-
-            eligible: false,
-
-            score: 0,
-
-            reason:
-                "INTERNSHIP_ROLE",
-
-            roleMatches,
-
-            excludedMatches,
-
-            seniority,
-
-            careerTrack,
-
-            location,
-
-            experience
-        };
-    }
-
-
-    // ----------------------------------------------
-    // Reject senior roles
-    // ----------------------------------------------
-
-    if (
-        [
-            "senior",
-            "staff",
-            "principal",
-            "lead",
-            "manager",
-            "director",
-            "executive"
-        ].includes(seniority)
-    ) {
-
-        return {
-            job,
-
-            eligible: false,
-
-            score: 0,
-
-            reason:
-                "SENIOR_ROLE",
-
-            roleMatches,
-
-            excludedMatches,
-
-            seniority,
-
-            careerTrack,
-
-            location,
-
-            experience
-        };
-    }
-
-
-    // ----------------------------------------------
-    // Reject non-target roles
-    // ----------------------------------------------
-
-    if (
-        roleMatches.length === 0
-    ) {
-
-        return {
-            job,
-
-            eligible: false,
-
-            score: 0,
-
-            reason:
-                "ROLE_NOT_TARGETED",
-
-            roleMatches,
-
-            excludedMatches,
-
-            seniority,
-
-            careerTrack,
-
-            location,
-
-            experience
-        };
-    }
-
-
-    // ----------------------------------------------
-    // Reject location
-    // ----------------------------------------------
-
-    if (
-        !location.eligible
-    ) {
-
-        return {
-            job,
-
-            eligible: false,
-
-            score: 0,
-
-            reason:
-                location.reason,
-
-            roleMatches,
-
-            excludedMatches,
-
-            seniority,
-
-            careerTrack,
-
-            location,
-
-            experience
-        };
-    }
-
-
-    // ----------------------------------------------
-    // Significant experience mismatch
-    // ----------------------------------------------
-
-    if (
-        !experience.eligible
-    ) {
-
-        return {
-            job,
-
-            eligible: false,
-
-            score: 0,
-
-            reason:
-                experience.reason,
-
-            roleMatches,
-
-            excludedMatches,
-
-            seniority,
-
-            careerTrack,
-
-            location,
-
-            experience
-        };
-    }
-
-
-    // ----------------------------------------------
-    // Calculate score
-    // ----------------------------------------------
-
-    const score =
-        calculateScore(
-            job,
-            {
-                roleMatches,
-                location,
-                experience,
-                careerTrack
-            }
-        );
-
-
-    return {
-
-        job,
-
-        eligible:
-            score >=
-            jobPreferences.minMatchScore,
-
-        score,
-
-        reason:
-            score >=
-            jobPreferences.minMatchScore
-                ? "MATCH"
-                : "LOW_SCORE",
-
-        roleMatches,
-
-        excludedMatches,
-
-        seniority,
-
-        careerTrack,
-
-        location,
-
-        experience
-    };
-}
-
-
-// ==================================================
-// Filter all jobs
-// ==================================================
-
-function filterJobs(jobs) {
-
-    const results =
-        jobs.map(
-            evaluateJob
-        );
-
-    const eligible =
-        results
-            .filter(
-                result =>
-                    result.eligible
-            )
-            .sort(
-                (a, b) =>
-                    b.score - a.score
-            );
-
-    return {
-        all: results,
-        eligible
-    };
-}
-
-
-// ==================================================
-// Exports
-// ==================================================
+/*
+|--------------------------------------------------------------------------
+| Export
+|--------------------------------------------------------------------------
+*/
 
 module.exports = {
-
+    buildCandidateQueue,
     filterJobs,
-
-    evaluateJob,
-
+    classifyLocation,
+    detectRole,
     detectSeniority,
-
-    detectCareerTrack,
-
-    checkLocation,
-
-    checkExperience,
-
-    extractRequiredYears,
-
-    analyzeLocation
+    isInternship,
+    isHardExcluded,
+    calculateCandidatePriority,
+    locationToText
 };
